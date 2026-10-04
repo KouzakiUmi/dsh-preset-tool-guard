@@ -1,0 +1,54 @@
+{
+  "name": "dsh-preset-tool-guard",
+  "displayName": "预设工具白名单（per-preset tool guard）",
+  "version": "0.1.0",
+  "description": "Per-preset tool visibility for DeepSeek Harness: apply ctx.tools.restrict() on an agent's own scope at agent/created, so a preset exposes only the tools it should while the heavy providers stay mounted.",
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./scripts/check-patch.cjs": "./scripts/check-patch.cjs"
+  },
+  "files": [
+    "lib/index.js",
+    "scripts/check-patch.cjs",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "deepseek-harness",
+    "cordis",
+    "preset",
+    "tool-restriction",
+    "context-budget",
+    "agent-scope"
+  ],
+  "author": "KouzakiUmi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KouzakiUmi/dsh-preset-tool-guard.git"
+  },
+  "homepage": "https://github.com/KouzakiUmi/dsh-preset-tool-guard#readme",
+  "bugs": {
+    "url": "https://github.com/KouzakiUmi/dsh-preset-tool-guard/issues"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

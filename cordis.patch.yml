@@ -1,0 +1,30 @@
+# dsh-preset-tool-guard —— 自我挂载（只 insert 本插件一行）
+#
+# 这里给的是**保守默认**：dryRun 打开、不带任何白名单。插件加载后只会在日志里
+# 报告"如果生效会隐藏什么"，不改动任何工具面。
+#
+# 真正生效的 preset 白名单写在 profile 的 cordis.patch.yml 里（desktop / web 各一份）。
+# 注意 Loader 对同一个 id 的 config 是**整体替换**：profile 里写 config 时必须把下面
+# 这些字段全部写全，否则未写的字段会回落到插件默认值。
+#
+# 字段：
+#   allowlists    { presetId: [工具名…] }  命中即"只保留列出的"，其余继承来的工具被掩掉
+#   deny          [工具名…]                所有 preset 一律隐藏的名字
+#   denyPrefixes  [前缀…]                  所有 preset 一律隐藏的命名空间前缀
+#   groups        { 组名: { names: […], prefix: 前缀 } }
+#   disableGroups [组名…]                  被禁用的组成员一律隐藏
+#   skipUncomposed true                    没有组合 preset 的 Agent 不套白名单
+#   report         true                    每个 Agent 打一行报告（隐藏数量 / 字节 / 估算 tokens）
+#   dryRun         true                    只测量与报告，不施加掩码
+- insert:
+    - id: preset-tool-guard
+      name: dsh-preset-tool-guard
+      config:
+        allowlists: {}
+        deny: []
+        denyPrefixes: []
+        groups: {}
+        disableGroups: []
+        skipUncomposed: true
+        report: true
+        dryRun: true
