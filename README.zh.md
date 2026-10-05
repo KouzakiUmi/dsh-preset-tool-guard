@@ -42,6 +42,9 @@ preset 生命周期上。
 
 ```sh
 # 任何 dsh CLI（TUI、web profile 等）
+dsh plugin --profile <profile> add dsh-preset-tool-guard
+
+# 从 GitHub 安装
 dsh plugin --profile <profile> add github:KouzakiUmi/dsh-preset-tool-guard
 
 # 从本地目录安装
@@ -55,20 +58,19 @@ dsh plugin --profile <profile> add /path/to/dsh-preset-tool-guard
 $env:ELECTRON_RUN_AS_NODE = '1'
 & "C:\Program Files\DSH NEXT\DSH NEXT.exe" --expose-internals `
   "C:\Program Files\DSH NEXT\resources\app\lib\desktop-cli.js" `
-  plugin --profile desktop add github:KouzakiUmi/dsh-preset-tool-guard
+  plugin --profile desktop add dsh-preset-tool-guard
 ```
 
 两种写法最终都落进 profile 目录里的 `pnpm`（`plugin` 会把参数转发给它），因此 `add` / `remove` /
 `install` 的行为与预期一致。注意 `--profile` 是必填项；另外内置 `dsh` 会拒绝在 Electron 路径之外
 启动名为 `desktop` 的 profile。
 
-安装后**需要重启 DSH**：插件是 host 侧 bundle，运行中的进程仍持有旧的插件树；重启前创建的会话会保持它
-启动时的工具面。
+安装后**需要重启 DSH**：插件是 host 侧 bundle，运行中的进程仍持有旧的插件树；插件加载时也会补扫 `agents.list()` 返回的既有 Agent，按各自预设施加规则。
 
 卸载请用同样的命令换成 `remove`，并从 profile 补丁里删掉 `preset-tool-guard` 配置段——只移除包行会留下
 一段悬空配置。
 
-> 尚未发布到 npm。
+npm 包名为 `dsh-preset-tool-guard`；指定 `dsh-preset-tool-guard@0.1.2` 可固定本次版本。
 
 ## 配置
 
@@ -97,7 +99,7 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 
 | 字段 | 代码默认值 | 含义 |
 | --- | --- | --- |
-| `allowlists` | `{}` | `{ presetId: [工具名…] }`。命中的 preset 只保留列出的**继承**工具，其余继承来的全部掩掉（fail-closed：之后注册到继承层的工具**不会**被放行，因为 filter 是快照）。空数组是"显式一个都不留"，不是"没配"——若它与可限制集合无交集，插件放弃掩码并告警，而不是把工具面清空。未列入的 preset 不套白名单，但仍受下面的 `deny` / 组规则约束。 |
+| `allowlists` | `{}` | `{ presetId: [工具名…] }`。命中的 preset 只保留列出的**继承**工具，其余继承来的全部掩掉（fail-closed：之后注册到继承层的工具**不会**被放行，因为 filter 是快照）。空数组或与可限制集合无交集的名单只会跳过白名单并告警，不会清空继承工具面，兜底规则仍生效。未列入的 preset 不套白名单，但仍受下面的 `deny` / 组规则约束。 |
 | `deny` | `[]` | 所有 Agent 一律隐藏的精确工具名，无论有没有组合 preset。 |
 | `denyPrefixes` | `[]` | 所有 Agent 一律隐藏的**裸前缀**（`startsWith` 语义，例如 `cua_driver_native__`）。 |
 | `groups` | `{}` | 命名工具组：`{ 组名: { names: […], prefix: "…" } }`。 |
@@ -121,7 +123,11 @@ $env:ELECTRON_RUN_AS_NODE = '1'
   说明**，而**不**退回到 `schemas()`——两者的集合语义不同（schemas 含 Agent 自身层与保留传输名），
   把那些名字喂给 `restrict()` 会让整次调用失败。
 - PTC 的保留传输名 `run_code` 永远不会写进 filter。
-- 白名单与该作用域可限制工具**没有交集**时放弃掩码并告警。
+- 白名单与该作用域可限制工具**没有交集**时跳过白名单并告警，`deny`、前缀与禁用组仍生效。
+  空白名单也采用这个保护行为，不会清空继承工具面。
+- **晚注册工具也受兜底规则约束**：监听 `tools/change`，为新命中规则的继承工具追加禁用限制，
+  包括 Agent 创建后才连接的提供方。不会重建白名单快照或放行晚注册的白名单名字；重复事件
+  不会追加重复限制。`dryRun` 只报告新命中的名字，不安装限制。
 - 所有失败路径都只记日志并返回；绝不阻塞 Agent 创建。
 - **preset 切换被正确处理**：上游 `recompose`（空白会话切换 preset 时走它）只做重新绑定，**不会**重发
   `agent/created`。插件监听 `agent-preset/selected`，先撤销旧限制再重新施加——因为限制之间取交集，不能
@@ -163,6 +169,8 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 ## 开发
 
 ```sh
+npm test
+node scripts/check-manifest.mjs
 node scripts/check-patch.cjs [profile目录] [工具清单JSON] [--strict]
 ```
 
@@ -184,7 +192,9 @@ node scripts/check-patch.cjs [profile目录] [工具清单JSON] [--strict]
 已在 `@deepseek-ai/dsh-*` **0.2.0-rc.2** 上验证（Node `^22.19 || >=24`）。插件只在运行时通过
 `ctx.get()` 读 `tools`、`agentPresets` 与 `agents`，加载时不 import 除 Node 内置模块以外的任何东西，
 所以依赖面很小：`@deepseek-ai/cordis`（~4.x），加上一个暴露 `ToolRuntime.restrict()`、
-`agent/created` 与 `agent-preset/selected` 的 harness。
+`agent/created`、`agent-preset/selected` 与 `tools/change` 的 harness。
+缺少 `tools/change` 的宿主无法为晚注册工具更新兜底规则，但 Agent 创建或切换预设时仍会施加规则。
+本插件是继承工具的可见性掩码，不是沙箱，也无法阻止 Agent 自身层注册的工具。
 
 ## 许可
 

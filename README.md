@@ -44,6 +44,9 @@ The package ships its own `cordis.patch.yml`, so installing it mounts the plugin
 
 ```sh
 # any dsh CLI (TUI, web profile, …)
+dsh plugin --profile <profile> add dsh-preset-tool-guard
+
+# from GitHub
 dsh plugin --profile <profile> add github:KouzakiUmi/dsh-preset-tool-guard
 
 # from a local checkout
@@ -58,7 +61,7 @@ dsh plugin --profile <profile> add /path/to/dsh-preset-tool-guard
 $env:ELECTRON_RUN_AS_NODE = '1'
 & "C:\Program Files\DSH NEXT\DSH NEXT.exe" --expose-internals `
   "C:\Program Files\DSH NEXT\resources\app\lib\desktop-cli.js" `
-  plugin --profile desktop add github:KouzakiUmi/dsh-preset-tool-guard
+  plugin --profile desktop add dsh-preset-tool-guard
 ```
 
 Both forms end up in `pnpm` inside the profile directory (`plugin` forwards its arguments to pnpm), so
@@ -66,12 +69,12 @@ Both forms end up in `pnpm` inside the profile directory (`plugin` forwards its 
 bundled `dsh` refuses to boot a profile literally named `desktop` outside the Electron path.
 
 Then **restart DSH**: the plugin is a host-side bundle, so the running process keeps its old tree.
-Sessions created before the restart keep the tool surface they started with.
+On load, the plugin also sweeps existing agents returned by `agents.list()` and applies their rules.
 
 To remove it, run the same command with `remove`, and delete the `preset-tool-guard` entry from your
 profile patch (see below). Removing the package row alone leaves a dangling config block.
 
-> Not published to npm yet.
+The npm package is `dsh-preset-tool-guard`; use `dsh-preset-tool-guard@0.1.2` to pin this release.
 
 ## Configure
 
@@ -101,7 +104,7 @@ the code default `false` (masking enabled).
 
 | Field | Default in code | Meaning |
 | --- | --- | --- |
-| `allowlists` | `{}` | `{ presetId: [toolName, …] }`. A matching preset keeps **only** the listed inherited tools; every other inherited tool is masked (fail-closed: a tool registered later on an inherited layer is *not* admitted, because the filter is a snapshot). An empty array is a deliberate "keep nothing" list, not "unconfigured" — if it cannot intersect the restrictable set, the plugin aborts the mask with a warning instead of blanking the tool surface. Presets absent from this map get no allowlist, but still receive the `deny` / group rules below. |
+| `allowlists` | `{}` | `{ presetId: [toolName, …] }`. A matching preset keeps **only** the listed inherited tools; every other inherited tool is masked (fail-closed: a tool registered later on an inherited layer is *not* admitted, because the filter is a snapshot). An empty array or a list with no restrictable matches skips only the allowlist with a warning; the inherited tool surface is not cleared, and bottom rules still apply. Presets absent from this map get no allowlist, but still receive the `deny` / group rules below. |
 | `deny` | `[]` | Exact tool names removed from every agent, composed preset or not. |
 | `denyPrefixes` | `[]` | Plain `startsWith` prefixes removed from every agent (e.g. `cua_driver_native__`). |
 | `groups` | `{}` | Named groups: `{ groupId: { names: […], prefix: "…" } }`. |
@@ -129,7 +132,12 @@ the code default `false` (masking enabled).
   differ (schemas include the agent's own layer and the reserved transport name), and feeding those
   names to `restrict()` would make the whole call fail.
 - The reserved PTC transport `run_code` is never written into a filter.
-- An allowlist that intersects the restrictable set to nothing aborts the mask with a warning.
+- An allowlist with no restrictable matches is skipped with a warning; `deny`, prefixes and disabled
+  groups still apply. An empty allowlist therefore does not clear the inherited tool surface.
+- **Late registrations receive bottom rules.** The plugin listens to `tools/change` and adds denials
+  for newly matching inherited names, including providers connected after agent creation. It does
+  not rebuild the allowlist snapshot or admit late allowlisted names. Repeated events add no duplicate
+  denials. Dry run reports these names without installing restrictions.
 - Every failure path logs and returns; agent creation is never blocked.
 - **Preset switches are handled.** Upstream `recompose` (used when a blank session changes preset) only
   rebinds the mount — it does not re-emit `agent/created`. The plugin listens for
@@ -177,6 +185,8 @@ The report line separates the two cases so you can tell them apart without guess
 ## Development
 
 ```sh
+npm test
+node scripts/check-manifest.mjs
 node scripts/check-patch.cjs [profileDir] [toolsJson] [--strict]
 ```
 
@@ -200,7 +210,10 @@ catalog shape, or (with `--strict`) a missing tool name. Without `--strict`, mis
 Verified on `@deepseek-ai/dsh-*` **0.2.0-rc.2** (Node `^22.19 || >=24`). The plugin reads `tools`,
 `agentPresets` and `agents` through `ctx.get()` at runtime and imports nothing at load time except Node
 builtins, so the peer surface is small: `@deepseek-ai/cordis` (~4.x) plus a harness exposing
-`ToolRuntime.restrict()`, `agent/created` and `agent-preset/selected`.
+`ToolRuntime.restrict()`, `agent/created`, `agent-preset/selected` and `tools/change`.
+Hosts without `tools/change` cannot update bottom rules for late registrations; existing rules still
+apply when an agent is created or its preset changes. This is a visibility mask for inherited tools,
+not a sandbox or a way to block tools registered directly on the agent's own layer.
 
 ## License
 

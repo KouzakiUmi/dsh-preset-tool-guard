@@ -90,7 +90,7 @@ if (guard === undefined) {
   for (const [preset, list] of Object.entries(allowlists)) {
     counts[preset] = Array.isArray(list) ? list.length : `NOT-ARRAY(${typeof list})`;
     if (!Array.isArray(list)) fail(`allowlists.${preset} 不是数组`);
-    else if (list.length === 0) warn(`allowlists.${preset} 是空数组：会作为"显式空白名单"，与可限制集合无交集时插件放弃掩码并告警`);
+    else if (list.length === 0) warn(`allowlists.${preset} 是空数组：插件跳过白名单并告警，兜底规则仍生效`);
   }
   console.log('preset-tool-guard ->', JSON.stringify({
     allowlistCounts: counts,

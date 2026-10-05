@@ -41,7 +41,10 @@ jobs:
           NODE
 
       - name: Manifest and syntax checks
-        run: node scripts/check-manifest.mjs
+        run: |
+          node --check lib/index.js
+          npm test
+          node scripts/check-manifest.mjs
 
       - name: Pack and validate release asset
         run: |

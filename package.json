@@ -1,7 +1,11 @@
 {
   "name": "dsh-preset-tool-guard",
   "displayName": "预设工具白名单（per-preset tool guard）",
-  "version": "0.1.1",
+  "version": "0.1.2",
+  "scripts": {
+    "test": "node --test",
+    "prepublishOnly": "npm test && node scripts/check-manifest.mjs"
+  },
   "description": "Per-preset tool visibility for DeepSeek Harness: apply ctx.tools.restrict() on an agent's own scope at agent/created, so a preset exposes only the tools it should while the heavy providers stay mounted.",
   "type": "module",
   "engines": {
