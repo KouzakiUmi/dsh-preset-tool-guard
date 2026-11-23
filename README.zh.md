@@ -35,7 +35,7 @@ preset 生命周期上。
 
 ## 安装
 
-前置要求：Node `^22.19` 或 `>=24`（见 `engines`），以及一个暴露 `ToolRuntime.restrict()` 与
+前置要求：Node `>=24.9.0`（见 `engines`），以及一个暴露 `ToolRuntime.restrict()` 与
 `agent/created` 事件的 harness。
 
 插件自带 `cordis.patch.yml`，安装即挂载。
@@ -52,7 +52,7 @@ dsh plugin --profile <profile> add /path/to/dsh-preset-tool-guard
 ```
 
 **DSH Desktop 的 PATH 里没有 `dsh`。** GUI 可执行文件是 Electron 壳，不是 CLI——把 `plugin …` 传给它
-**不会**执行插件命令。请用它自带的终端 shim（已在 DSH Desktop `2.0.17-next` + 核心 `0.2.0-rc.2` 实测）：
+**不会**执行插件命令。请用它自带的终端 shim（已在 DSH Desktop `2.0.17-next` + 核心 `0.2.0-rc.2` 实测；待在 0.2.2 下重新验证）：
 
 ```powershell
 $env:ELECTRON_RUN_AS_NODE = '1'
@@ -70,7 +70,7 @@ $env:ELECTRON_RUN_AS_NODE = '1'
 卸载请用同样的命令换成 `remove`，并从 profile 补丁里删掉 `preset-tool-guard` 配置段——只移除包行会留下
 一段悬空配置。
 
-npm 包名为 `dsh-preset-tool-guard`；指定 `dsh-preset-tool-guard@0.1.2` 可固定本次版本。
+npm 包名为 `dsh-preset-tool-guard`；指定 `dsh-preset-tool-guard@0.1.3` 可固定本次版本。
 
 ## 配置
 
@@ -138,10 +138,11 @@ npm 包名为 `dsh-preset-tool-guard`；指定 `dsh-preset-tool-guard@0.1.2` 可
 ## 报告
 
 ```
-2026-10-04T12:34:56.789Z preset-tool-guard: excluded 114/168 inherited names (155810 of 199433 utf8 schema bytes, 78.1%, ~43281 tokens) agent="session-…" preset="standard" mode=allowlist
+2026-10-04T12:34:56.789Z preset-tool-guard: excluded 114/168 inherited names allowlisted=10 matched=8 (155810 of 199433 utf8 schema bytes, 78.1%, ~43281 tokens) agent="session-…" preset="standard" mode=allowlist
 ```
 
 - 动词为 `excluded`（`dryRun` 下是 `would exclude`），并带 `mode=allowlist|bottom`。
+- `allowlisted` 是该 preset 白名单里的条数，`matched` 是其中实际落在可掩码继承层的条数；`matched < allowlisted` 时看同一行的 drift 提示：缺的名字要么在 Agent 自身层（恒可见），要么当前未注册。
 - 计数与体积描述的是**继承面**：在"该作用域可限制的名字"里被排除掉多少个。可见工具数可能不同（见下面的
   两类例外）。
 - 体积是序列化 schema 的 UTF-8 字节数，再按 3.6 字节/token 折算成粗略 token 估计——只表示量级，不是
@@ -150,7 +151,7 @@ npm 包名为 `dsh-preset-tool-guard`；指定 `dsh-preset-tool-guard@0.1.2` 可
 - 同一行会带 ISO 时间戳追加到 `reportFile`。宿主 logger 的输出通道不一定落到可读日志文件，所以文件才是
   可核对的记录。
 
-在一台 desktop profile（核心 `0.2.0-rc.2`）上的实测：`standard` 的工具前缀从约 60K tokens 降到约
+在一台 desktop profile（核心 `0.2.0-rc.2`，0.2.2 下待重新验证）上的实测：`standard` 的工具前缀从约 60K tokens 降到约
 10.5K 的 schema；一个桌面操作驱动（62 个工具）、两个浏览器 MCP（55 个工具）与图像提供方被排除出日常
 模式，同时仍在一个"不声明白名单"的 `full` 模式里完整可用。
 
@@ -189,7 +190,7 @@ node scripts/check-patch.cjs [profile目录] [工具清单JSON] [--strict]
 
 ## 兼容性
 
-已在 `@deepseek-ai/dsh-*` **0.2.0-rc.2** 上验证（Node `^22.19 || >=24`）。插件只在运行时通过
+已适配 `@deepseek-ai/dsh-*` **0.2.2-rc.5**（Node `>=24.9.0`）；在真实 DSH 0.2.2-rc.5 安装上的运行时验证尚未完成——目前只有本地测试。插件只在运行时通过
 `ctx.get()` 读 `tools`、`agentPresets` 与 `agents`，加载时不 import 除 Node 内置模块以外的任何东西，
 所以依赖面很小：`@deepseek-ai/cordis`（~4.x），加上一个暴露 `ToolRuntime.restrict()`、
 `agent/created`、`agent-preset/selected` 与 `tools/change` 的 harness。
