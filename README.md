@@ -37,7 +37,7 @@ itself. This plugin wires that seam into the preset lifecycle.
 
 ## Install
 
-Requirements: Node `^22.19` or `>=24` (see `engines`), and a harness that exposes
+Requirements: Node `>=24.9.0` (see `engines`), and a harness that exposes
 `ToolRuntime.restrict()` plus the `agent/created` event.
 
 The package ships its own `cordis.patch.yml`, so installing it mounts the plugin row.
@@ -55,7 +55,7 @@ dsh plugin --profile <profile> add /path/to/dsh-preset-tool-guard
 
 **DSH Desktop has no `dsh` on PATH.** The GUI executable is the Electron shell, not the CLI — passing
 `plugin …` to it does *not* run a plugin command. Use the terminal shim that the desktop ships
-(verified on DSH Desktop `2.0.17-next`, core `0.2.0-rc.2`):
+(verified on DSH Desktop `2.0.17-next`, core `0.2.0-rc.2`; 待在 0.2.2 下重新验证):
 
 ```powershell
 $env:ELECTRON_RUN_AS_NODE = '1'
@@ -74,7 +74,7 @@ On load, the plugin also sweeps existing agents returned by `agents.list()` and 
 To remove it, run the same command with `remove`, and delete the `preset-tool-guard` entry from your
 profile patch (see below). Removing the package row alone leaves a dangling config block.
 
-The npm package is `dsh-preset-tool-guard`; use `dsh-preset-tool-guard@0.1.2` to pin this release.
+The npm package is `dsh-preset-tool-guard`; use `dsh-preset-tool-guard@0.1.3` to pin this release.
 
 ## Configure
 
@@ -150,10 +150,11 @@ the code default `false` (masking enabled).
 ## Reporting
 
 ```
-2026-10-04T12:34:56.789Z preset-tool-guard: excluded 114/168 inherited names (155810 of 199433 utf8 schema bytes, 78.1%, ~43281 tokens) agent="session-…" preset="standard" mode=allowlist
+2026-10-04T12:34:56.789Z preset-tool-guard: excluded 114/168 inherited names allowlisted=10 matched=8 (155810 of 199433 utf8 schema bytes, 78.1%, ~43281 tokens) agent="session-…" preset="standard" mode=allowlist
 ```
 
 - `excluded` / `would exclude` (the latter under `dryRun`), and `mode=allowlist|bottom`.
+- `allowlisted` is the number of entries in the allowlist for that preset; `matched` is how many of those actually landed in the maskable inherited layer. If `matched < allowlisted`, see the drift note in the same line: the missing names are either on the agent's own layer (always visible) or not currently registered.
 - Counts and sizes describe the **inherited surface**: names the restriction excludes out of the names
   the scope could restrict. Visible-tool counts can differ (see the two exceptions below).
 - Sizes are UTF-8 bytes of the serialized schema, converted to a rough token estimate at 3.6 bytes per
@@ -162,7 +163,7 @@ the code default `false` (masking enabled).
 - The same line is appended to `reportFile` with an ISO timestamp. The host logger's output channel is
   not necessarily a readable log file, so the file is the reliable record.
 
-Measured on a desktop profile (core `0.2.0-rc.2`): `standard` went from roughly 60K tokens of tool
+Measured on a desktop profile (core `0.2.0-rc.2`, 0.2.2 下待重新验证): `standard` went from roughly 60K tokens of tool
 prefix to about 10.5K of schema, with a computer-use driver (62 tools), two browser MCP servers (55
 tools) and image providers excluded from the everyday presets — and still fully available in a `full`
 preset that simply declares no allowlist.
@@ -207,7 +208,7 @@ catalog shape, or (with `--strict`) a missing tool name. Without `--strict`, mis
 
 ## Compatibility
 
-Verified on `@deepseek-ai/dsh-*` **0.2.0-rc.2** (Node `^22.19 || >=24`). The plugin reads `tools`,
+Adapted for `@deepseek-ai/dsh-*` **0.2.2-rc.5** (Node `>=24.9.0`); runtime verification on a real DSH 0.2.2-rc.5 install is still pending — local tests only. The plugin reads `tools`,
 `agentPresets` and `agents` through `ctx.get()` at runtime and imports nothing at load time except Node
 builtins, so the peer surface is small: `@deepseek-ai/cordis` (~4.x) plus a harness exposing
 `ToolRuntime.restrict()`, `agent/created`, `agent-preset/selected` and `tools/change`.
